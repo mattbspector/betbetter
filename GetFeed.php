@@ -3,73 +3,77 @@
 date_default_timezone_set('America/Detroit');
 
 //Grab the XML Doc
-$feedUrl = 'http://sportsfeeds.bovada.lv/basic/NFL.xml';
-$httpChannel = curl_init();
-curl_setopt($httpChannel, CURLOPT_URL, $feedUrl);
-curl_setopt($httpChannel, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($httpChannel, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($httpChannel, CURLOPT_HEADER, 0);
-$initialFeed = curl_exec($httpChannel);
-curl_close($httpChannel);
-$doc = new SimpleXmlElement($initialFeed, LIBXML_NOCDATA);
-//End grabbing XML Doc (Now in object $doc)
+function getXMLDoc($feedUrl){
 
+	$httpChannel = curl_init();
+	curl_setopt($httpChannel, CURLOPT_URL, $feedUrl);
+	curl_setopt($httpChannel, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($httpChannel, CURLOPT_SSL_VERIFYPEER, false);
+	curl_setopt($httpChannel, CURLOPT_HEADER, 0);
+	$initialFeed = curl_exec($httpChannel);
+	curl_close($httpChannel);
+	$doc = new SimpleXmlElement($initialFeed, LIBXML_NOCDATA);
+
+	return $doc;
+}
 
 //Get current date/week
-$dateArray = getdate();
-$dateString = substr($dateArray['weekday'],0,3) . ', ' .  substr($dateArray['month'],0,3) . ' ' . $dateArray['mday'] . ', ' . substr($dateArray['year'],2,3);
-$currentTime = time();
+function currentDate($doc, $currentTime){
 
-$currWeek = '';
-$getNextThree = false;
-$dateArray = array();
+	$dateArray = getdate();
+	$dateString = substr($dateArray['weekday'],0,3) . ', ' .  substr($dateArray['month'],0,3) . ' ' . $dateArray['mday'] . ', ' . substr($dateArray['year'],2,3);
+	$currWeek = '';
+	$getNextThree = false;
+	$dateArray = array();
+	//BUG (WORKS ONLY IF BEFORE THURSDAY, IF AFTER THURSDAY OR AFTER GAME STARTS IT WILL BREAK)
+	foreach ($doc->EventType->Date as $Date) {
 
-
-
-//BUG (WORKS ONLY IF BEFORE THURSDAY, IF AFTER THURSDAY OR AFTER GAME STARTS IT WILL BREAK)
-foreach ($doc->EventType->Date as $Date) {
-
-	$Timestamp = intval(substr($Date['TS'],0,10));
-	if($currentTime < $Timestamp || $currentTime < $Timestamp + 86400){
-		$getNextThree = true;
-	}
-	if($getNextThree){
-		if(sizeof($dateArray) < 3){
-			$dateArray[] = $Date;
+		$Timestamp = intval(substr($Date['TS'],0,10));
+		if($currentTime < $Timestamp || $currentTime < $Timestamp + 86400){
+			$getNextThree = true;
 		}
-		else{
-			break;
-		}
-	}
-}
-//ENDBUG
-
-//PRINT OUT DATE AND GAMES ON THAT DATE WITH A LINE
-foreach ($dateArray as $Event) {
-	echo $Event['DTEXT'] . '<br/>';
-	foreach ($Event as $oneGame) {
-		$Timestamp = intval(substr($oneGame->Time['TS'],0,10));
-		if($currentTime > $Timestamp){
-			continue;
-		}
-		else{
-					$line = $oneGame->Competitor[0]->Line->Choice['NUMBER'];
-			if(strpos($line, '½')){
-				$pos = strpos($line, '½');
-				$line = substr($line, 0, $pos);
-				$line = $line . ".5";
-			}	
-			if($line > 0){
-				$line = '+' . $line;
+		if($getNextThree){
+			if(sizeof($dateArray) < 3){
+				$dateArray[] = $Date;
 			}
-			$line = ' (' . $line . ') ';
-			echo $oneGame->Competitor[0]['NAME'] .$line . ' vs. ';
-			echo $oneGame->Competitor[1]['NAME'] . ' <br/> ';
+			else{
+				break;
+			}
 		}
 	}
 
-	echo "<br>";
+	return $dateArray;
 }
-//END PRINT
 
+function currentGames($dateArray, $currentTime){
+
+	$gameArray = array();
+	foreach ($dateArray as $Event) {
+		foreach ($Event as $oneGame) {
+			$Timestamp = intval(substr($oneGame->Time['TS'],0,10));
+			if($currentTime > $Timestamp){
+				continue;
+			}
+			else{
+				foreach ($oneGame->Competitor as $Competitor) {
+					$line = $Competitor->Line->Choice['NUMBER'];
+					if(strpos($line, '½')){
+						$pos = strpos($line, '½');
+						$line = substr($line, 0, $pos);
+						$line = $line . ".5";
+						$Competitor->Line->Choice['NUMBER'] = $line;
+					}
+					if(intval($line) > 0){
+						$Competitor->Line->Choice['NUMBER'] = "+" . $Competitor->Line->Choice['NUMBER'];
+					}
+				}
+				$gameArray[] = $oneGame;
+			}
+		}
+	}
+
+	return $gameArray;
+}
+//PRINT OUT DATE AND GAMES ON THAT DATE WITH A LINE
+//END PRINT
 ?>
