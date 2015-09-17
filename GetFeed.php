@@ -25,6 +25,7 @@ $getNextThree = false;
 $dateArray = array();
 
 
+
 //BUG (WORKS ONLY IF BEFORE THURSDAY, IF AFTER THURSDAY OR AFTER GAME STARTS IT WILL BREAK)
 foreach ($doc->EventType->Date as $Date) {
 
@@ -47,15 +48,24 @@ foreach ($doc->EventType->Date as $Date) {
 foreach ($dateArray as $Event) {
 	echo $Event['DTEXT'] . '<br/>';
 	foreach ($Event as $oneGame) {
-	$line = $oneGame->Competitor[0]->Line->Choice['NUMBER'];
-	$line = intval($line);
-	if($line > 0){
-		$line = '+' . $line;
-	}
-
-	$line = ' (' . $line . ') ';
-	echo $oneGame->Competitor[0]['NAME'] .$line . ' vs. ';
-	echo $oneGame->Competitor[1]['NAME'] . ' <br/> ';
+		$Timestamp = intval(substr($oneGame->Time['TS'],0,10));
+		if($currentTime > $Timestamp){
+			continue;
+		}
+		else{
+					$line = $oneGame->Competitor[0]->Line->Choice['NUMBER'];
+			if(strpos($line, '½')){
+				$pos = strpos($line, '½');
+				$line = substr($line, 0, $pos);
+				$line = $line . ".5";
+			}	
+			if($line > 0){
+				$line = '+' . $line;
+			}
+			$line = ' (' . $line . ') ';
+			echo $oneGame->Competitor[0]['NAME'] .$line . ' vs. ';
+			echo $oneGame->Competitor[1]['NAME'] . ' <br/> ';
+		}
 	}
 
 	echo "<br>";
