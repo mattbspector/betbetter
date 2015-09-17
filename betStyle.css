@@ -1,0 +1,17 @@
+.clear{
+	clear: both;
+}
+.DateTime{
+	width: 100%;
+	text-align: center;
+}
+.team1{
+	float: left;
+	width: 50%;
+	text-align: center;
+}
+.team2{
+	float: left;
+	width: 50%;
+	text-align: center;
+}
